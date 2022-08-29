@@ -1,0 +1,876 @@
+---
+title: An Analysis of  BRT Systems across the World.
+author: "Jeffrey Ohene"
+date: "2022-08-28"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+![Bus Rapid Transit, Curitiba](curitiba.jpg)
+
+
+The BRT system, short for Bus Rapid Transit system, according to Wikipedia, is any bus system with designated & dedicated roadways for the buses. Priority is given to these buses over any other vehicle at intersections and traffic lights. The system offers faster speed, dependability at lower costs than the traditional bus system while efficiently making far better capacity design. This project is going to analyse the BRT systems of Africa, Asia, Europe and North-America and then Latin America. 
+
+The analysis will largely be based on the key indicators such as passengers per day, number of corridors and length of corridors of each continent and visualize how they stack up against the other continents.
+
+
+```{r}
+#Load libraries for analysis
+
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(scales)
+```
+
+We would begin with Asia. Asia according to the Global BRT Data Organization features 12 countries which use the BRT system. For the sake of data integrity, Malaysia, which at the time of analysis had missing information for passengers per day was omitted. A number of cities with missing data for the same indicator were also omitted and all omitted countries and cities will be listed in the appendix.
+
+First of, the data for the 11 Asian countries with a BRT will be loaded below and joined and stored under Asia, so we can have all the cities of these countries in a single place for further analysis.
+
+```{r}
+#Load datasets for Asian countries
+
+china <- read_csv("brtdata-china.csv")
+india <- read_csv("brtdata-india.csv")
+indonesia <- read_csv("brtdata-indonesia.csv")
+iran <- read_csv("brtdata-iran.csv")
+israel <- read_csv("brtdata-israel.csv")
+japan <- read_csv("brtdata-japan.csv")
+pakistan <- read_csv("brtdata-pakistan.csv")
+rep_of_korea <- read_csv("brtdata-republic_of_korea.csv")
+taiwan <- read_csv("brtdata-taiwan.csv")
+thailand <- read_csv("brtdata-thailand.csv")
+vietnam <- read_csv("brtdata-vietnam.csv")
+```
+
+
+```{r}
+#Bind datasets 
+asien <- rbind(
+  china,india,indonesia,iran,israel,japan,pakistan,
+  rep_of_korea,taiwan,thailand,vietnam)
+
+asien
+```
+
+
+Voila! Now that we have all our Asian cities in a single place, we can proceed to rename the columns in a way that will make our analysis smooth as some of the column strings have words R might interpret as commands.
+```{r}
+#Rename columns for more efficient identification
+
+asien <- asien %>%
+  rename(
+    city=Cities,
+    passengers=`Passengers per Day`,
+    corridors=`Number of Corridors`,
+    length=`Length (km)`
+  )
+
+asien
+
+str(asien)
+```
+
+Smooth! We might be curious. What is the total length of corridors in Asia? or maybe we want to know, how many passengers use the BRT system per Day in Asia. Would that be a huge number? Or maybe Asians do not really like the BRT system? Enough speculation, time for facts!
+
+```{r}
+#Calculate daily passenger total & Corridor length
+
+tot_asi <- asien %>%
+  summarize(
+    passengers_per_day=sum(passengers),
+    total_distance=sum(length)
+  )
+
+tot_asi
+```
+As we can see, some 9.2 million people use the BRT system every single day in Asia. The total length of BRT corridors is also 1602 km long!
+
+Now we know a large number of people use the BRT in some form in Asia on a daily basis. Wouldn't it be more interesting to know which cities rank top? If anyone had a wild guess, they would probably suggest a city in China or India as both of them are the most populated countries in the world. Nice try, but let's see what our data says!
+
+```{r}
+#Top 10 cities by daily passenger count
+
+top_cities_asien <- asien %>%
+  select(city,passengers,corridors,length) %>%
+  arrange(desc(passengers))%>%
+  slice(1:3)
+
+top_cities_asien
+```
+![Tehran](tehran.png)
+
+
+
+Interestingly, Tehran, Iran, has the highest BRT system patronage out of all Asian cities. They also have the longest corridor length and second longest number of corridors! Impressive.
+
+Taiwan's beautiful Taipei comes in second and has 1.3 million daily passengers. This is all the more impressive when you consider the fact that the city of Taipei has only a single corridor, ranking it joint bottom among all the Asian cities and also they have the 5th longest corridor length.
+
+Only Tehran and Taipei have over a million daily passengers in Asia. China's Guangzhou comes in third with a daily passenger total of 850,000, a single corridor which is only 23km.
+
+
+Now to find some even more insights, let us manipulate our data further.
+```{r}
+#Calculate mean of the passenger distribution
+avg_asi <- asien %>%
+  select(city,passengers) %>%
+  summarize(
+    avg=mean(passengers),
+    avg_km=mean(asien$length)
+  )
+
+avg_asi
+```
+Averagely, the number daily passengers is approximately 231,000 and the total distance of the corridors on the continent is about 40km.
+```{r}
+#Split to quartiles to check real structure of passenger distribution
+quantile(asien$passengers)
+IQR(asien$passengers)
+
+
+#Visualize quartiles
+p0 <- ggplot(asien,aes(passengers)) +
+  geom_boxplot(fill="darkgreen", alpha=0.6)
+  
+p0 + theme_classic() +
+  coord_flip()
+```
+Quartiles help us measure the spread of our data. Here we find out that Tehran and Taipei, are the farthest outliers and our data is structured more around the 32,250 - 267,500 range. We can conclude that, realistically, Asian cities' patronage of the BRT system is around the 235,250.
+
+Our density plot below helps us confirm the above statistic that more Asian cities have a daily passenger total of below approximately 235,250. The plot also shows that any given city chosen at random is likely to have a daily passenger number of below 125,000.
+```{r}
+#Density plot for Asia
+set.seed(250)
+
+p1 <- ggplot(asien,aes(passengers)) +
+  geom_density(fill="darkgreen", alpha=0.6)
+
+p1 + geom_vline(aes(xintercept=mean(asien$passengers)),
+            color="black", linetype="dashed", size=1)+
+  scale_y_continuous(labels=comma)
+```
+
+The next continent that would be subject to our analysis will be Africa. Let us clean and model our data nicely for further analysis.
+```{r}
+#Load datasets for African countries
+nigeria <- read_csv("brtdata-nigeria.csv")
+south_afrika <- read_csv("brtdata-south_africa.csv")
+tanzania <- read_csv("brtdata-tanzania.csv")
+
+#Bind datasets into a single dataframe
+afrika <- rbind(
+  nigeria,south_afrika,tanzania
+)
+
+afrika
+
+#Rename columns for more efficient identification
+afrika <- afrika %>%
+  rename(
+    city=Cities,
+    passengers=`Passengers per Day`,
+    corridors=`Number of Corridors`,
+    length=`Length (km)`
+  )
+
+afrika
+
+str(afrika)
+```
+
+
+```{r}
+#Sum of daily passengers and corridor distance
+tot_afr <- afrika %>%
+  summarize(
+    passengers_per_day=sum(passengers),
+    total_distance=sum(length)
+  )
+
+tot_afr
+```
+A total number of 491,578 people use the BRT system on a daily basis in Africa. The total length of BRT corridors in this vast continent is disappointingly only 132km long!
+
+```{r}
+#Top 3 African cities by daily passenger total
+top_cities_afrika <- afrika %>%
+  select(city,passengers,corridors,length) %>%
+  arrange(desc(passengers))%>%
+  slice(1:3)
+
+top_cities_afrika
+
+```
+Nigeria's Lagos has the most daily passenger total with 200,000 people. There is only a single corridor in the city which spans over 22km. Dar es Salaam in Tanzania comes in close second with 180,000 daily passengers using the BRT system in a single corridor of length 21km. Cape Town in South Africa, with surprisingly the more corridors than Lagos and Dar es Salaam that span 31km(more than each of the top two) have an underwhelming amount of daily passengers with only around 66,000 daily passengers.
+
+![Lagos](lagos.jpeg)
+
+
+```{r}
+#Calculate mean of the passenger distribution
+avg_afr <- afrika %>%
+  select(city,passengers) %>%
+  summarize(
+    avg_ppl=mean(passengers),
+    avg_km=mean(afrika$length)
+  )
+
+avg_afr
+```
+On an average, the continent of Africa have approximately 98,000 daily passengers This figure is over two times less than the average daily passengers in Asia. The average length of a given corridor in a city on the continent is 26.4km
+
+```{r}
+#Split to quartiles to check real structure of passenger distribution
+quantile(afrika$passengers)
+IQR((afrika$passengers))
+
+#Visualize quartiles
+p2 <- ggplot(afrika,aes(passengers)) +
+  geom_boxplot(fill="orange", alpha=0.6)
+
+p2 + theme_classic()+
+  coord_flip()
+```
+As the boxplot above vividly shows, the distribution of passengers is relatively more uniform with no outliers and a concentration of the data between 42,000 - 180,000 range with an interquartile range of 138,000. 
+
+Another interesting point, as the density plot below shows is that, it is worth noting is that, the likeliest number of daily passengers you would get in a given African city based on the dataset is between 25,000 - 75,000 as our density curve below shows. An interesting insight into the data that may be a more reliable/realistic yardstick in future planning of further BRT systems in other countries.
+
+```{r}
+#Density plot for Africa
+set.seed(250)
+
+p3 <- ggplot(afrika,aes(passengers)) +
+  geom_density(fill="orange", alpha=0.6)
+
+p3 + geom_vline(aes(xintercept=mean(afrika$passengers)),
+            color="black", linetype="dashed", size=1)+
+  scale_y_continuous(labels=comma)
+
+```
+
+Let us now move from Africa further north to Europe. Now, Europe is arguably the continent with the most developed the most developed bus system in the world. No pun intended, but how does the BRT system fare there? 
+
+```{r}
+#Load datasets for European countries
+finland <- read_csv("brtdata-finland.csv")
+france <- read_csv("brtdata-france.csv")
+germany <- read_csv("brtdata-germany.csv")
+netherlands <- read_csv("brtdata-netherlands.csv")
+spain <- read_csv("brtdata-spain.csv")
+sweden <- read_csv("brtdata-sweden.csv")
+switzerland <- read_csv("brtdata-switzerland.csv")
+turkey <- read_csv("brtdata-turkey.csv")
+united_kingdom <- read_csv("brtdata-united_kingdom.csv")
+
+
+#Bind datasets into a single dataframe
+europa <- rbind(
+  finland,france,germany,netherlands,spain,sweden,
+  switzerland,turkey,united_kingdom)
+
+
+#Rename columns for more efficient identification
+europa <- europa %>%
+  rename(
+    city=Cities,
+    passengers=`Passengers per Day`,
+    corridors=`Number of Corridors`,
+    length=`Length (km)`
+  )
+
+europa
+
+str(europa)
+```
+
+
+
+```{r}
+#Sum of passengers per day and total corridor distance
+tot_eur <- europa %>%
+  summarize(
+    passengers_per_day=sum(passengers),
+    total_distance=sum(length)
+  )
+
+tot_eur
+```
+The BRT system in Europe is used by a combined total of 2.9 million passengers on a daily basis. The total distance of all corridors on the continent also adds up to 838km.
+
+```{r}
+#Top 3 European cities by daily passenger total
+top_cities_europa <- europa %>%
+  select(city,passengers,corridors,length) %>%
+  arrange(desc(passengers))%>%
+  slice(1:3)
+
+top_cities_europa
+```
+The French city of Lille boasts of the most daily passengers of the BRT system in Europe with approximately 1.32 million passengers per day. Turkish city Istanbul is the next city with the most BRT passengers with a daily passenger total of 750,000. French capital Paris comes in at third place with 89,500 daily passengers and Stockholm and Caen complete the top 5 European cities according to daily passenger total with 57,000 and 48,000 daily passengers respectively.
+
+
+![Lille](lille.jpg)
+
+
+It is in Europe that we finally achieve some normalcy with the top 5 cities per daily passenger total the same as the top 5 cities per total corridor length. Lille and Paris however rank joint first placed based on the number of corridors with 3 each. Turkey's Istanbul's total passengers per day figure looks even more impressive given the fact that, there is only a single corridor running through the entire city.
+
+
+We have seen that Lille and Istanbul are the cities in Europe with the highest daily passenger totals but wouldn't we get more insight by seeing the average number of daily passengers European BRT system have? Bien sûr!
+
+```{r}
+#Calculate mean of the passenger distribution
+avg_eu <- europa %>%
+  select(city,passengers) %>%
+  summarize(
+    avg_ppl=mean(passengers),
+    avg_km=mean(europa$length)
+  )
+
+avg_eu
+```
+Intéressant! Interesting! Europe has an average daily passenger total of 73,000 people, which is relatively very low. They post less figures for passengers per day and total corridor distance than Asia and even Africa, despite having more cities!
+
+```{r}
+#Split to quartiles to check real structure of passenger distribution
+quantile(europa$passengers)
+IQR((europa$passengers))
+
+#Visualize quartiles
+p4 <- ggplot(europa,aes(passengers)) +
+  geom_boxplot(fill="orange", alpha=0.6)
+
+p4 + theme_classic()+
+  coord_flip()
+```
+The above boxplot shows us how close together number of daily passengers of BRT systems in Europe are with the exception of the top 3; Lille, Istanbul and Paris, all accounting for the three outliers outside our data. Our interquartile range produces a figure of 26,029, a figure which gives us a very accurate measure of spread than the standard range which will definitely be affected by the outliers.
+
+From our density curve, we see a higher occurrence of  cities having daily passenger totals between 7,200 - 33,000. Our density curve below shows us a higher probability of a chosen European city having less than the average number of daily passengers which was around 73,000. This is a more realistic metric to use in assessing the standard for future BRT systems.
+
+```{r}
+#Density plot for Europe
+set.seed(250)
+
+p5 <- ggplot(europa,aes(passengers)) +
+  geom_density(fill="orange", alpha=0.6)
+
+p5 + geom_vline(aes(xintercept=mean(europa$passengers)),
+            color="black", linetype="dashed", size=1)+
+  scale_x_continuous(labels=comma)+
+  scale_y_continuous(labels=comma)
+```
+
+Our next point of focus will be across the Atlantic Ocean from Europe straight to North America! Now there are two countries under scrutiny here; Canada and the United States of America. Will their figures be better than the previous 3 continents? Let's get right into it!
+```{r}
+#Load datassets
+canada <- read_csv("brtdata-canada.csv")
+united_states <- read_csv("brtdata-united_states.csv")
+
+#Bind datasets into a single dataframe
+nord_amerika <- rbind(
+  canada,united_states
+)
+
+#Rename columns for more efficient identification
+nord_amerika <- nord_amerika %>%
+  rename(
+    city=Cities,
+    passengers=`Passengers per Day`,
+    corridors=`Number of Corridors`,
+    length=`Length (km)`
+  )
+
+nord_amerika
+
+str(nord_amerika)
+```
+So our North America dataframe contains 20 cities, 6 Canadian cities and 14 American cities.
+```{r}
+#Sum of passengers per day and total corridor distance
+tot_na <- nord_amerika %>%
+  summarize(
+    passengers_per_day=sum(passengers),
+    total_distance=sum(length)
+  )
+
+tot_na
+```
+A total of a little over 1 million passengers use the BRT system in North America, less than Europe and Asia but more than Africa. The total distance of all corridors in the region is 720km.
+```{r}
+#Top 3 cities by daily passenger total
+top_cities_n_amerika <- nord_amerika %>%
+  select(city,passengers,corridors,length) %>%
+  arrange(desc(passengers))%>%
+  slice(1:3)
+
+top_cities_n_amerika
+```
+America's New York, the city with the most corridors and second most corridor length total, comes in first position based on the total number of daily passengers of BRT systems. 305,911 New Yorkers use BRT on a daily basis. Canada's Ottawa comes in next 220,000 daily passengers over 5 corridors that spans 59km in all.
+
+![New York](new_york.jpg)
+
+Winnipeg however, has one very interesting statistic. Yes, it is the third city in North America with the highest number of daily passengers but it only has a single corridor that is only 4km long! It boasts of the highest number of daily passengers over the shortest distance in the world!
+
+```{r}
+#Calculate mean of the passenger distribution
+avg_na <- nord_amerika %>%
+  select(city,passengers) %>%
+  summarize(
+    avg_ppl=mean(passengers),
+    avg_km=mean(nord_amerika$length)
+  )
+
+avg_na
+```
+Averagely, the daily number of BRT system passengers in North America are only about 50,000 per day. The lowest so far! The average length of its corridors is 36km.
+
+
+```{r}
+#Split to quartiles to check real structure of passenger distribution
+quantile(nord_amerika$passengers)
+IQR(nord_amerika$passengers)
+#Visualize quartiles
+p6 <- ggplot(nord_amerika,aes(passengers)) +
+  geom_boxplot(fill="black", alpha=0.6)
+
+p6 + theme_classic()+
+  coord_flip()
+```
+The above boxplot shows us the range of  our data with much of the data points/cities with daily passenger numbers below 50,000. The outliers are New York, Ottawa, Winnepeg and Quebec. The majority of the data lies between 8,000 to 36,000, showing an interquartile range of around 28,000.
+
+Our density plot confirms the above notion as a larger amount of cities have a daily passenger total of less than 28,000
+```{r}
+#Density plot for North America
+set.seed(250)
+
+p7 <- ggplot(nord_amerika,aes(passengers)) +
+  geom_density(fill="black", alpha=0.6)
+
+p7 + geom_vline(aes(xintercept=mean(nord_amerika$passengers)),
+            color="black", linetype="dashed", size=1)+
+  scale_x_continuous(labels=comma)+
+  scale_y_continuous(labels=comma)
+```
+
+```{r}
+#Load datassets
+argentina <- read_csv("brtdata-argentina.csv")
+brazil <- read_csv("brtdata-brazil.csv")
+chile <- read_csv("brtdata-chile.csv")
+colombia <- read_csv("brtdata-colombia.csv")
+ecuador <- read_csv("brtdata-ecuador.csv")
+el_salvador <- read_csv("brtdata-el_salvador.csv")
+guatemala <- read_csv("brtdata-guatemala.csv")
+mexico <- read_csv("brtdata-mexico.csv")
+peru <- read_csv("brtdata-peru.csv")
+uruguay <- read_csv("brtdata-uruguay.csv")
+venezuela <- read_csv("brtdata-venezuela.csv")
+#Bind datasets into a single dataframe
+latein_amerika <- rbind(
+  argentina,brazil,chile,colombia,ecuador,el_salvador,guatemala,mexico,
+  peru,uruguay,venezuela
+)
+
+#Rename columns for more efficient identification
+latein_amerika <- latein_amerika %>%
+  rename(
+    city=Cities,
+    passengers=`Passengers per Day`,
+    corridors=`Number of Corridors`,
+    length=`Length (km)`
+  )
+
+latein_amerika
+
+str(latein_amerika)
+```
+There are 59 cities in our Latin America dataframe. 5 Argentinian, 24 Brazilian, 2 Chilean, 7 Colombian, 2 Ecuadorian, 1 El Salvadorian, 1 Guatemalan, 12 Mexican, 1 Peruvian, 1 Uruguayan and 3 Venezuelan cities in the dataframe.
+
+```{r}
+#Sum of passengers per day and total corridor distance for Latin America
+tot_la <- latein_amerika %>%
+  summarize(
+    passengers_per_day=sum(passengers),
+    total_distance=sum(length)
+  )
+
+tot_la
+```
+A total of a whooping 17.5 million Latin Americans use the BRT system every single day. The total corridor length is also huge with the entire corridor network on the continent adding up to 1960km. The highest performer in terms of both indicators so far, surpassing even Asia and interestingly Africa, Europe and North America combined in terms of combined corridor distances and all 4 continents in terms of daily passengers.
+```{r}
+#Top 3 Latin American cities by passengers per day
+top_cities_l_amerika <- latein_amerika %>%
+  select(city,passengers,corridors,length) %>%
+  arrange(desc(passengers))%>%
+  slice(1:3)
+
+top_cities_l_amerika
+```
+In terms of top 3 Latin American countries by daily passengers, Brazil's Rio de Janeiro comes top of the pops with 3.5 million daily. It is the city with the highest number of daily passengers so far. Rio has 17 corridors, spanning a total distance of 168km. Next up is Colombia's Bogotá which boasts of approximately 2.2 million daily passengers wit 11 corridors spanning a combined distance of 113km. Mexico City comes in third place with 1.2 million daily passengers and 7 corridors spanning 140km. 
+
+![Rio de Janeiro](rio.jpg)
+
+It is interesting to also note that so far, only Latin America has posted over a million figures for its top 3 cities based on total daily passengers.
+```{r}
+#Calculate mean of the passenger distribution
+avg_la <- latein_amerika %>%
+  select(city,passengers) %>%
+  summarize(
+    avg_ppl=mean(passengers),
+    avg_km=mean(latein_amerika$length)
+  )
+
+avg_la
+```
+An average number of around 297,000 of Latin Americans use the BRT system on a daily basis. This figure looks even more impressive when you consider the fact that, so far, they are the third placed continent in terms of average distance behind Asia and North America.
+```{r}
+#Split to quartiles to check real structure of passenger distribution
+quantile(latein_amerika$passengers)
+IQR(latein_amerika$passengers)
+#Visualize quartiles
+p8 <- ggplot(latein_amerika,aes(passengers)) +
+  geom_boxplot(fill="orange", alpha=0.6)
+
+p8 + theme_classic()+
+  coord_flip()
+```
+Latin American cities generally have a total of daily passengers between 37,500 - 326,500 as the boxplot above shows. with an interquartile range of 289,000. 
+
+The density plot below shows a large number of Latin American countries, more than half in fact below 250,000. The highest interquartile range out of all the continents!
+```{r}
+#Density plot for Latin Amerika
+set.seed(250)
+
+p9 <- ggplot(latein_amerika,aes(passengers)) +
+  geom_density(fill="orange", alpha=0.6)
+
+p9 + geom_vline(aes(xintercept=mean(latein_amerika$passengers)),
+            color="black", linetype="dashed", size=1)+
+  scale_x_continuous(labels=comma)+
+  scale_y_continuous(labels=comma)
+
+```
+
+Finally, we analyse Oceania! A continent in the ocean, no? 
+```{r}
+#Load datassets
+australia <- read_csv("brtdata-australia.csv")
+new_zealand <- read_csv("brtdata-new_zealand.csv")
+
+#Bind datasets into a single dataframe
+oceania <- rbind(
+  australia,new_zealand
+)
+
+#Rename columns for more efficient identification
+oceania <- oceania %>%
+  rename(
+    city=Cities,
+    passengers=`Passengers per Day`,
+    corridors=`Number of Corridors`,
+    length=`Length (km)`
+  )
+
+oceania
+
+str(oceania)
+```
+There are 4 cities in our Oceania dataframe. 3 Australian and 1 city from New Zealand.
+
+```{r}
+#Total passengers per day and total distance for Oceania
+tot_oce <- oceania %>%
+  summarize(
+    passengers_per_day=sum(passengers),
+    total_distance=sum(length)
+  )
+
+tot_oce
+```
+Oceania has a total number of 436,200 daily BRT system passengers and a total corridor distance of 95km.
+```{r}
+#Top 3 cities by daily total passenger total
+top_cities_oceania <- oceania %>%
+  select(city,passengers,corridors,length) %>%
+  arrange(desc(passengers))%>%
+  slice(1:3)
+
+top_cities_oceania
+```
+Oceania's top 3 countries according to daily passengers are; Brisbane, Adelaide & Sydney with a total daily passenger number of 356,800, 32,000 and 24,500 respectively.
+
+![Brisbane](brisbane.jpg)
+
+```{r}
+#Calculate mean of the passenger distribution
+avg_oce <- oceania %>%
+  select(city,passengers) %>%
+  summarize(
+    avg_ppl=mean(passengers),
+    avg_km=mean(oceania$length)
+  )
+
+avg_oce
+```
+Oceania has an average number of approximately 109,000 daily passengers and on average, a corridor distance of 23.75km
+```{r}
+#Split to quartiles to check real structure of passenger distribution
+quantile(oceania$passengers)
+IQR(oceania$passengers)
+
+#Visualize quartiles
+p10 <- ggplot(oceania,aes(passengers)) +
+  geom_boxplot(fill="lightblue", alpha=0.6)
+
+p10 + theme_classic()+
+  coord_flip()
+```
+The bulk spread of Oceania's daily passenger total is between 24,100 - 113,200, with an interquartile range of 89,100.
+
+The density plot below shows how the probability of a city's total passenger limit being below the 40,000 mark.
+```{r}
+#Density plot for Oceania
+set.seed(250)
+
+p11 <- ggplot(oceania,aes(passengers)) +
+  geom_density(fill="lightblue", alpha=0.6)
+
+p11 + geom_vline(aes(xintercept=mean(oceania$passengers)),
+            color="black", linetype="dashed", size=1)+
+  scale_x_continuous(labels=comma)+
+  scale_y_continuous(labels=comma)
+
+```
+
+
+We can now test for top continents and cities by; passengers per day, number of corridors and corridor distance. And add a couple of other tests. This analysis will then conclude with a test to check if the number of daily passengers is linked to total number of corridors and corridor length using a regression analysis model.
+
+We would begin with binding all the continent dataframes together.
+```{r}
+#Bind continents to a single dataframe
+kontinenten <- rbind(
+  afrika,asien,europa,nord_amerika,latein_amerika,oceania
+)
+
+kontinenten
+```
+We have a total of 168 cities from 6 continents. The cities by continent are; 5 African, 40 Asian, 40 European, 20 North American, 59 Latin American and 4 Oceanic cities in our dataframe. Let us assign them in R.
+```{r}
+afr_cities <- 5
+asi_cities <- 40
+eur_cities <- 40
+na_cities <- 20
+la_cities <- 59
+oce_cities <- 4
+```
+
+From the above code chunk, the rank by number of cities with a BRT system is:
+1. Latin America
+2. Asia & Europe
+3. North America
+4. Africa
+5. Oceania
+
+Let us now wrangle our data to find out our top city by daily passenger total for each continent
+
+```{r}
+#Assign a continent column
+afrika$continent <- "Africa"
+asien$continent <- "Asia"
+europa$continent <- "Europe"
+latein_amerika$continent <- "Latin America"
+nord_amerika$continent <- "North America"
+oceania$continent <- "Oceania"
+```
+
+```{r}
+#Africa
+top_city_afr <- afrika %>%
+  select(city,passengers,continent) %>%
+  arrange(desc(passengers))%>%
+  slice(1:1)
+
+#Asia
+top_city_asi <- asien %>%
+  select(city,passengers,continent) %>%
+  arrange(desc(passengers))%>%
+  slice(1:1)
+
+#Europa
+top_city_eur <- europa %>%
+  select(city,passengers,continent) %>%
+  arrange(desc(passengers))%>%
+  slice(1:1)
+
+#Latein Amerika
+top_city_la <- latein_amerika %>%
+  select(city,passengers,continent) %>%
+  arrange(desc(passengers))%>%
+  slice(1:1)
+
+#Nord-Amerika
+top_city_na <- nord_amerika %>%
+  select(city,passengers,continent) %>%
+  arrange(desc(passengers))%>%
+  slice(1:1)
+
+#Oceania
+top_city_oce <- oceania %>%
+  select(city,passengers,continent) %>%
+  arrange(desc(passengers))%>%
+  slice(1:1)
+
+#Join results
+top_city_kontinent <- rbind(
+  top_city_afr,top_city_asi,top_city_eur,top_city_la,top_city_na,top_city_oce
+)
+```
+Let us now order and visualize our results.
+```{r}
+#Rank continents according to their cities with highest daily passenger total
+top_city_kontinent %>%
+  group_by(passengers,continent) %>%
+  arrange(desc(passengers))
+```
+As we can see from our results above, Latin America has the city with the highest number of daily passengers with Rio de Janeiro at first position. Asia is second with Iran's Tehran coming in second. Europe takes third position with France's Lille coming third and Oceania's Brisbane, North America's New York and Africa's Lagos  coming in 4th, 5th and 6th with 356,800, 305911 and 200,000 respectively.
+
+Now to the bigger fish we can fry! We would now find out the top continents by daily passengers. 
+
+```{r}
+#Rank continents according to total passengers
+top_kontinent <- kontinenten%>%
+  group_by(kontinenten$continent) %>% 
+  summarise(passengers = sum(passengers))%>%
+  arrange(desc(passengers))
+
+top_kontinent
+```
+Once again, Latin America ranks first in terms of most daily passengers by continent with 17.5 million daily passengers, nearly twice as much as the second ranked continent, Asia and more than all the other continents combined indicating the heavy use of the BRT system in Latin America. Asia is the second continent with the highest total of daily passengers with 9.2 million daily users. Europe and North America rank 3rd and 4th with about 2.9 and 1 million daily users respectively. Africa and Oceania are bottom at 5th and 6th place with 492,000 and 436,000 daily passengers respectively, for Africa, an area that can be massively improved upon.
+
+```{r}
+#Rank total corridor distance by continent
+top_dist_kontinent <- kontinenten %>%
+  group_by(kontinenten$continent) %>% 
+  summarise(length = sum(length))%>%
+  arrange(desc(length))
+
+top_dist_kontinent
+```
+
+In terms of corridor length, Latin America ranks first, Asia second, Europe third, North America fourth, Africa fifth and Oceania bottom with 1,960, 1,602, 838, 720, 132 & 95 respectively.
+
+
+```{r}
+#Rank corridor total by continent
+top_corridors <- kontinenten%>%
+  group_by(kontinenten$continent) %>% 
+  summarise(corridors = sum(corridors))%>%
+  arrange(desc(corridors))
+
+top_corridors
+```
+One can be forgiven for thinking Latin America is done after their impressive numbers but they once again rank first number of BRT corridors with a total of 191. Asia is second with a total of 94 corridors, Europe 52, North America 50, Africa 8 & Oceania 8 in that order.
+
+```{r}
+#Cities with over a million daily passenger total
+million_daily <- kontinenten%>%
+  group_by(kontinenten$city) %>% 
+  filter(passengers>1000000)%>%
+  arrange(desc(passengers))
+
+million_daily
+```
+There are also only 4 cities in the world with a daily passenger total of over 1 million. Rio de Janeiro is first and by some distance with 3.5 million, followed by Bogota and Tehran with 2.19 and 2 million daily passenger total respectively. Taipei and Mexico City place fifth and sixth respectively with 1.3 and 1.2 million daily passenger totals.
+
+In this respect, we can also rank South America first with 3 countries out of the top 5 cities with over a million daily passengers plus it has the highest ranking city in this respect. Asia comes in second with two cities; Tehran then Taipei and Europe's Lille comes in 3rd.
+
+
+
+We will now test if there is a correlation between daily passengers and distance and number of corridors respectively. 
+
+For our first test between daily passengers and distance, we will state a working and null hypothesis.
+
+The working(H1) and null(H2) hypotheses are:
+H1: The higher the distance of corridors, the higher the number of daily passengers
+H0: There is no link between corridor distance and the number of daily passengers
+
+```{r}
+#Variable 1: length
+ggplot(kontinenten,aes(length))+
+  geom_histogram()
+
+#Variable 2: passengers
+ggplot(kontinenten,aes(passengers))+
+  geom_density(fill="green",alpha=0.7)
+```
+
+
+```{r}
+#Bivariate relationship visual
+ggplot(kontinenten, aes(length)) +
+geom_histogram(aes(y=..density..),
+colour="black", fill="white") +
+geom_density(alpha=0.6, fill="darkgreen")
+```
+
+```{r}
+#Scatterplot to visualize bivariate correlation
+ggplot(kontinenten, aes(length,passengers)) +
+   geom_point(position='jitter') +
+   geom_smooth(method="lm",se=FALSE) +
+   labs(title="Corridor Length & Passengers",
+      x="Corridor Length",
+      y="Daily Passengers") +
+   theme_classic()
+```
+The graph above shows the relationship between Corridor Length 
+```{r}
+#Statistical Correlation test
+cor.test(kontinenten$passengers,kontinenten$length)
+```
+Our Pearson R coefficient is 0.56 with a p-value of 0.0000000000000031. Since our p-value is lower than the 0.05 statistical significance cut-off point, we can conclude that, there is a strong relationship between corridor distance and daily passengers so we can therefore reject the null hypothesis which says "There is no link between corridor distance and the number of daily passengers."
+
+
+
+
+The working(H1) and null(H2) hypotheses are:
+H1: The higher the number of corridors, the higher the number of daily passengers
+H0: There is no link between number of corridors and the number of daily passengers
+```{r}
+#Variable 1: corridors
+ggplot(kontinenten,aes(corridors))+
+  geom_histogram(bins=10)
+
+#Variable 2: passengers
+ggplot(kontinenten,aes(passengers))+
+  geom_density(fill="brown",alpha=0.7)
+```
+
+```{r}
+ggplot(kontinenten, aes(corridors)) +
+geom_histogram(aes(y=..density..),
+colour="black", fill="white") +
+geom_density(alpha=0.6, fill="brown")
+```
+
+```{r}
+#Scatterplot to visualize bivariate correlation
+ggplot(kontinenten, aes(corridors,passengers)) +
+   geom_point(position='jitter') +
+   geom_smooth(method="lm",se=FALSE) +
+   labs(title="Corridors & Passengers",
+      x="Corridor Length",
+      y="Daily Passengers") +
+   theme_classic()
+```
+
+```{r}
+#Statistical Correlation test
+cor.test(kontinenten$passengers,kontinenten$corridors)
+```
+Our Pearson R coefficient is 0.58 with a p-value of 0.0000000000000003052. Since our p-value is lower than the 0.05 statistical significance cut-off point, we can conclude that, there is a strong relationship between corridors and daily passengers so we can therefore reject the null hypothesis which says "There is no link between number of corridors and the number of daily passengers."
+
+
+In conclusion, Latin America, especially Brazil, have produced the model BRT system in terms of functionality and patronage and Asia is close second. Africa, given the huge landmass could do way better in this area and hopefully, the situation improves soon through proper administration and efficient planning
